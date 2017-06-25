@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>dashb0ard</title>
+	<script type="text/javascript" src="static/scripts/highway.js/highway.bundle.js"></script>
+	<script type="text/javascript" src="static/scripts/vue.js"></script>
+	<script type="text/javascript" src="static/scripts/alertify.min.js"></script>
+	<script type="text/javascript" src="static/scripts/jquery-3.1.1.min.js"></script>
+	<script type="text/javascript" src="static/scripts/bootstrap.min.js"></script>
+	<script type="text/javascript" src="static/scripts/flot/jquery.flot.js"></script>
+	<script type="text/javascript" src="static/scripts/flot/jquery.flot.navigate.js"></script>
+
+	<link href="static/styles/bootstrap.min.css" rel="stylesheet">
+	<link href="static/styles/alertify.min.css" rel="stylesheet"></link>
+	<link href="static/styles/alertify-themes/bootstrap.min.css" rel="stylesheet"></link>
+	<style>
+
+		@font-face {
+			font-family: "Overpass";
+			src: url("static/fonts/Overpass-Regular.ttf");
+		}
+
+		body {
+			margin: 0px;
+			padding: 0px;
+			font-family: "Overpass";
+		}
+
+		.top-spacer {
+			margin-top: 1em;
+		}
+
+		.fl0w-logo {
+			background-image: url("static/images/fl0w.png");
+			background-size: contain;
+			background-repeat: no-repeat;
+			background-position: right;
+			float: right;
+			height: 50px;
+			width: 30%;
+		}
+
+		.divide {
+			margin-top: 15px;
+			border-top: 2px solid !important;
+			border-color: buttonface !important;
+		}
+
+		.hidden {
+			display: none;
+		}
+
+		#home:target, #sensors:target {
+			display: block !important;
+		}
+
+		.floating-alert {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+		}
+
+		#app {
+			margin-left: 2vw;
+			margin-right: 2vw;
+		}
+
+
+		.controller-list {
+			list-style-type: none;
+			padding-right: 0;
+			padding-left: 0;
+		}
+
+		.controller {
+			background-color: buttonface;
+			text-align: center;
+			min-width: 20vw;
+			display: inline-block;
+			border: 1px solid rgb(231, 231, 231);
+		}
+
+		.selected-controller {
+			background-color: #aaaaaa;
+		}
+
+
+		.sensor-graph {
+			width: 240px;
+			height: 240px;
+		}
+
+		.sensor-container > h5 {
+			margin-bottom: 0px;
+		}
+
+		.sensor-container {
+			background-color: buttonface;
+			text-align: center;
+			width: 280px;
+			height: 280px;
+			display: inline-block;
+			margin-right: 30px;
+			margin-top: 30px;
+			padding-bottom: 20px;
+			border-radius: 4px;
+		}
+
+		textarea {
+			height: 30vh;
+			width: 100%;
+		}
+
+		@media only screen and (max-width: 768px) {
+			.controller {
+				background-color: buttonface;
+				text-align: center;
+				width: 100%;
+				display: inline-block;
+				margin-top: 15px;
+				border: 1px solid rgb(231, 231, 231);
+			}
+		}
+
+	</style>
+
+</head>
+<body>
+	<header>
+		<nav class="navbar navbar-default">
+			<div class="container-fluid">
+				<div class="fl0w-logo"></div>
+				<div class="navbar-header">
+					<a class="navbar-brand">fl0w</a>
+				</div>
+				<ul id="menu" class="nav navbar-nav">
+					<li>
+						<a href="#home">Home</a>
+					</li>
+					<li>
+						<a href="#sensors">Sensors</a>
+					</li>
+				</ul>
+			</div>
+		</nav>
+	</header>
+
+	<div id="app">
+		<div class="alert alert-danger alert-dismissable floating-alert" v-show="showDisconnected">
+			<strong>Connection lost.</strong> Connection to fl0w was lost. <button style="float: right" v-on:click="window.highway.connect()">Retry</button>
+		</div>
+		<div class="alert alert-warning alert-dismissable floating-alert" v-show="showWarning">
+			{{warningText}}
+			<a href="#" class="close" data-dismiss="alert" aria-label="close" v-on:click="showWarning = false">&times;</a>
+		</div>
+
+		<div id="home" class="hidden well container-fluid">
+			<div class="row top-spacer">
+				<div class="col-sm-6">
+					<p>Power</p>
+				</div>
+				<div class="col-sm-6">
+					<div class="btn-group pull-right">
+						<button type="button" v-on:click="shutdown" class="btn btn-default">Shutdown</button>
+						<button type="button" v-on:click="reboot" class="btn btn-default">Reboot</button>
+					</div>
+				</div>
+			</div>
+			<div class="row top-spacer">
+				<div class="col-sm-6">
+					<p>Restart services</p>
+				</div>
+				<div class="col-sm-6">
+					<div class="btn-group pull-right">
+						<button type="button" v-on:click="restartBotui" class="btn btn-default">botui</button>
+						<button type="button" v-on:click="restartHarrogate" class="btn btn-default">harrogate</button>
+						<button type="button" v-on:click="restartNetworking" class="btn btn-default">networking</button>
+					</div>
+				</div>
+			</div>
+			<div class="row top-spacer">
+				<div class="col-sm-6">
+					<p>Controller</p>
+				</div>
+				<div class="col-sm-6">
+					<div class="btn-group pull-right">
+						<button type="button" v-on:click="identify" class="btn btn-default">Identify</button>
+						<button type="button" v-on:click="upgrade" class="btn btn-default">Upgrade</button>
+					</div>
+				</div>
+			</div>
+			<div class="row top-spacer">
+				<div class="col-sm-6">
+					<p>Reset co-processor</p>
+				</div>
+				<div class="col-sm-6">
+					<div class="pull-right">
+						<button class="btn btn-default" v-on:click="resetCoproc">Reset</button>
+					</div>
+				</div>
+			</div>
+			<div class="row top-spacer">
+				<div class="col-sm-6">
+					<p>Kill botball programs</p>
+				</div>
+				<div class="col-sm-6">
+					<div class="pull-right">
+						<button class="btn btn-default" v-on:click="killBotball">Kill</button>
+					</div>
+				</div>
+			</div>
+			<div class="row top-spacer">
+				<div class="col-xs-12">
+					<p>Controller output:</p>
+					<textarea id="output" readonly="true"></textarea>
+				</div>
+			</div>
+		</div>
+
+
+		<div id="sensors" class="hidden well container-fluid">
+			<h2>Analog</h2>
+			<div id="analog">
+				<div v-for="port in 6" class="sensor-container">
+					<h5>{{port}}</h5>
+					<div class="sensor-graph"></div>
+				</div>
+			</div>
+			<h2>Digital</h2>
+			<div id="digital">
+				<div v-for="port in 10" class="sensor-container">
+					<h5>{{port}}</h5>
+					<div class="sensor-graph"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<script>
+		var Highway = require("/highway.js");
+		var locationSet = false;
+		if (location.href.substring(location.href.indexOf("#") + 1) == location.href) {
+			location.href += "#home";
+			locationSet = true;
+		}
+		currentLocation = location.href.split("#");
+		if (!locationSet) {
+			location.href = currentLocation[0] + "#" + currentLocation[1];
+		}
+		$("a").each(function() {
+			if ($(this).attr("href") == ("#" + currentLocation[1])) {
+				$(this).parent().addClass("active");
+			}
+		});
+
+		window.addEventListener("hashchange", function(event) {
+			window.scrollTo(0, 0);
+		}, false);
+
+		$("#menu").click(function(event) {
+			$(event.target).parent().addClass("active");
+			$("#menu").find("a").not(event.target).parent().removeClass("active");
+		});
+
+		var app = new Vue({
+			el: "#app",
+			data: {
+				emptyDataset: [[]],
+				showDisconnected: false,
+				showWarning: false,
+				warningText: "",
+				currentX: 0,
+				window: window
+			},
+			methods: {
+				reboot: function(event) {
+					highway.send(null, "reboot");
+				},
+				shutdown: function(event) {
+					highway.send(null, "shutdown");
+				},
+				subscribe: function() {
+					highway.send({"subscribe" : {"analog" : [0, 1, 2, 3, 4, 5],
+						"digital" : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]}}, "sensor");
+					highway.send(null, "std_stream_subscribe");
+				},
+				identify: function () {
+					alertify.message("Identifying.")
+					highway.send(null, "identify");
+				},
+				upgrade: function () {
+					alertify.message("Starting update.")
+					highway.send(null, "upgrade");
+				},
+				upgrade: function () {
+					alertify.message("Starting update.")
+					highway.send(null, "upgrade");
+				},
+				killBotball: function () {
+					highway.send(null, "kill_botball");
+				},
+				resetCoproc: function () {
+					highway.send(null, "reset_coproc");
+				},
+				restartBotui: function () {
+					highway.send(null, "restart_x11");
+				},
+				restartHarrogate: function () {
+					highway.send(null, "restart_harrogate");
+				},
+				restartNetworking: function () {
+					highway.send(null, "restart_networking");
+				}
+			},
+		});
+
+
+		var analogDivs = $("#analog").find(".sensor-graph");
+		var digitalDivs = $("#digital").find(".sensor-graph");
+		var output = $("#output");
+
+		function appendToOutput(text) {
+			output.val(output.val() + text);
+			output.scrollTop(output[0].scrollHeight);
+		}
+
+		var maxPoints = 30;
+
+		var analogCharts = [];
+		var digitalCharts = [];
+
+		var analogOptions = {
+			series: {
+				shadowSize: 0,
+				color: "rgb(119, 119, 119)",
+				lines: {show: true, fill: true}
+			},
+			yaxis: {
+				min: 0,
+				max: 4095,
+				position: "right",
+				ticks: 2,
+				tickSize: 4095 / 2,
+				panRange: [0, 4095]
+			},
+			xaxis: {
+				show: false,
+			},
+			legend: {
+				show: false
+			},
+			grid: {
+				backgroundColor: "rgb(245, 245, 245)",
+				hoverable: false,
+			},
+			pan: {
+				interactive: true
+			}
+		}
+
+		var digitalOptions = {
+			series: {
+				shadowSize: 0,
+				color: "rgb(119, 119, 119)",
+				lines: {
+					show: true,
+					fill: true,
+					steps: true
+				}
+			},
+			yaxis: {
+				min: 0,
+				max: 2,
+				position: "right",
+				ticks: 1,
+				tickSize: 1
+			},
+			xaxis: {
+				show: false
+			},
+			legend: {
+				show: false
+			},
+			grid: {
+				backgroundColor: "rgb(245, 245, 245)"
+			}
+		};
+
+		for (var index = 0; index < maxPoints; index++){
+			app.emptyDataset[0].push([index, null]);
+		}
+
+		for (var index = 0; index < analogDivs.length; index++) {
+			var chart = $.plot($(analogDivs[index]), app.emptyDataset, analogOptions);
+			chart.setupGrid();
+			chart.draw();
+			analogCharts.push(chart);
+		}
+
+
+		for (var index = 0; index < digitalDivs.length; index++) {
+			var chart = $.plot($(digitalDivs[index]), app.emptyDataset, digitalOptions);
+			chart.setupGrid();
+			chart.draw();
+			digitalCharts.push(chart);
+		}
+
+		function UpgradeOutput() {}
+
+		UpgradeOutput.prototype.run = function(data, handler) {
+			appendToOutput(data);
+		}
+
+		function UpgradeExit() {}
+
+		UpgradeExit.prototype.run = function(data, handler) {
+			if (data != 0) {
+				alertify.error("Upgrade unsuccessful.");
+			} else {
+				alertify.success("Upgrade successful.");
+			}
+		}
+
+		function KillBotballOutput() {}
+
+		KillBotballOutput.prototype.run = function(data, handler) {
+			appendToOutput(data);
+		}
+
+		function KillBotballExit() {}
+
+		KillBotballExit.prototype.run = function(data, handler) {
+			if (data != 0) {
+				alertify.message("Nobody died :)");
+			} else {
+				alertify.message("Somebody died :(");
+			}
+		}
+
+
+		function ResetCoprocOutput() {}
+
+		ResetCoprocOutput.prototype.run = function(data, handler) {
+			appendToOutput(data);
+		}
+
+		function ResetCoprocExit() {}
+
+		ResetCoprocExit.prototype.run = function(data, handler) {
+			if (data != 0) {
+				alertify.message("Reset unsuccessful.");
+			} else {
+				alertify.success("Reset successful.");
+			}
+		}
+
+
+		function RestartX11Output() {}
+
+		RestartX11Output.prototype.run = function(data, handler) {
+			appendToOutput(data);
+		}
+
+		function RestartX11Exit() {}
+
+		RestartX11Exit.prototype.run = function(data, handler) {
+			if (data != 0) {
+				alertify.error("X11 restart unsuccessful.");
+			} else {
+				alertify.success("X11 restart successful.");
+			}
+		}
+
+		function RestartHarrogateOutput() {}
+
+		RestartHarrogateOutput.prototype.run = function(data, handler) {
+			appendToOutput(data);
+		}
+
+		function RestartHarrogateExit() {}
+
+		RestartHarrogateExit.prototype.run = function(data, handler) {
+			if (data != 0) {
+				alertify.error("Harrogate restart unsuccessful.");
+			} else {
+				alertify.success("Harrogate restart successful.");
+			}
+		}
+
+		function RestartNetworkingOutput() {}
+
+		RestartNetworkingOutput.prototype.run = function(data, handler) {
+			appendToOutput(data);
+		}
+
+		function RestartNetworkingExit() {}
+
+		RestartNetworkingExit.prototype.run = function(data, handler) {
+			if (data != 0) {
+				alertify.error("Networking restart unsuccessful.");
+			} else {
+				alertify.success("Networking restart successful.");
+			}
+		}
+
+
+		function Reboot() {}
+
+		Reboot.prototype.run = function(data, handler) {
+			if (!data) {
+				alertify.error("Reboot unsuccessful.");
+			}
+		}
+
+
+		function Shutdown() {}
+
+		Shutdown.prototype.run = function(data, handler) {
+			if (!data) {
+				alertify.error("Shutdown unsuccessful.");
+			}
+		}
+
+
+		function Identify() {}
+
+		Identify.prototype.run = function(data, handler) {
+			if (!data) {
+				alertify.error("Identify unsuccessful.");
+			} else {
+				 alertify.success("Identified.");
+			}
+		}		
+
+		var ANALOG = 1;
+		var DIGITAL = 2;
+
+		function Sensor() {}
+
+		Sensor.prototype.run = function(data, peer, handler) {
+			for (var port = 0; port < analogCharts.length; port++) {
+				var graphData = [analogCharts[port].getData()[0].data.concat([[app.currentX, data[ANALOG][port]]])];
+				if (graphData[0].length > maxPoints) {
+					graphData[0] = graphData[0].slice(graphData[0].length - maxPoints, graphData[0].length);
+				}
+				analogCharts[port].setData(graphData);
+				analogCharts[port].setupGrid();
+				analogCharts[port].draw();
+
+			}
+			for (var port = 0; port < digitalCharts.length; port++) {
+				var graphData = [digitalCharts[port].getData()[0].data.concat([[app.currentX, data[DIGITAL][port]]])];
+				if (graphData[0].length > maxPoints) {
+					graphData[0] = graphData[0].slice(graphData[0].length - maxPoints, graphData[0].length);
+				}
+				digitalCharts[port].setData(graphData);
+				digitalCharts[port].setupGrid();
+				digitalCharts[port].draw();
+			}
+			app.currentX += 1;
+		}
+
+		function SensorSubscribe() {}
+
+		SensorSubscribe.prototype.start = function(handler) {
+			var payload = {};
+			payload[ANALOG] = [0, 1, 2, 3, 4, 5];
+			payload[DIGITAL] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+			handler.send(payload, "sensor_subscribe", true);
+		}
+
+		SensorSubscribe.prototype.run = function(data, handler) {
+			if (!data) {
+				alertify.error("Subscription to sensors failed.");
+			}
+		}
+
+
+		function SensorUnsubscribe() {}
+
+		SensorUnsubscribe.prototype.run = function(data, handler) {
+			if (!data) {
+				alertify.error("Unsubscribe from sensors failed.");
+			}
+		}
+
+		highway_address = "ws://127.0.0.1:3077";
+
+		if (location.hostname != "") {
+			highway_address = "ws://" + location.hostname + ":3077"
+		}
+
+
+		var highway = new Highway(highway_address,
+		{
+			"sensor" : new Sensor(),
+			"sensor_subscribe" : new SensorSubscribe(),
+			"sensor_unsubscribe" : new SensorUnsubscribe(),
+			"reboot" : new Reboot(),
+			"shutdown" : new Shutdown(),
+			"identify" : new Identify(),
+			"upgrade_output" : new UpgradeOutput(),
+			"upgrade_exit" : new UpgradeExit(),
+			"kill_botball_output" : new KillBotballOutput(),
+			"kill_botball_exit" : new KillBotballExit(),
+			"reset_coproc_output" : new ResetCoprocOutput(),
+			"reset_coproc_exit" : new ResetCoprocExit(),
+			"restart_harrogate_output" : new RestartHarrogateOutput(),
+			"restart_harrogate_exit" : new RestartHarrogateExit(),
+			"restart_networking_output" : new RestartNetworkingOutput(),
+			"restart_networking_exit" : new RestartNetworkingExit(),
+			"restart_x11_output" : new RestartX11Output(),
+			"restart_x11_exit" : new RestartX11Exit()
+		},
+		true);
+
+		highway.onopen = function(event) {
+			app.showDisconnected = false;
+		}
+
+		highway.onerror = function(event) {
+			app.showDisconnected = true;
+		}
+
+		highway.onclose = function(event) {
+			app.showDisconnected = true;
+		}
+
+		highway.connect();
+	</script>
+</body>
+</html>

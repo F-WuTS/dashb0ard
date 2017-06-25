@@ -1,0 +1,6 @@
+[submodule "static/scripts/flot"]
+	path = static/scripts/flot
+	url = https://github.com/flot/flot.git
+[submodule "static/scripts/highway.js"]
+	path = static/scripts/highway.js
+	url = https://github.com/PhilipTrauner/highway.js.git
